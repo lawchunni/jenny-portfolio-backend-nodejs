@@ -3,6 +3,8 @@ const { connectToDb, getDb } = require('./connect');
 
 // init app & middleware
 const app = express();
+const cors = require('cors');
+app.use(cors());
 
 // db connection
 let db;
