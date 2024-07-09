@@ -1,6 +1,7 @@
 const express = require('express');
 const { ObjectId } = require('mongodb');
 const { connectToDb, getDb } = require('./connect');
+const bcrypt = require('bcrypt');
 
 // init app & middleware
 const app = express();
@@ -52,3 +53,35 @@ app.get('/portfolio/:id', (req, res) => {
       res.status(500).json({error: 'Could not fetch the document'})
     })
 })
+
+// get user list
+app.get('/users', (req, res) => {
+  let records = [];
+
+  db.collection('users')
+    .find() // return cursor
+    .sort({ _id: 1 })
+    .forEach(record => records.push(record))
+    .then(() => {
+      res.status(200).json(records)
+    })
+    .catch(() => {
+      res.status(500).json({error: 'Could not fetch the document'});
+    })
+
+});
+
+
+app.post('/users', async (req, res) => {
+  const { email, password, isAdmin } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = { email, password: hashedPassword, isAdmin };
+    const result = await db.collection('users').insertOne(newUser);
+    res.status(201).json({ message: 'User created successfully', userId: result.insertedId });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
