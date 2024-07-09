@@ -1,9 +1,14 @@
 const express = require('express');
+const { ObjectId } = require('mongodb');
 const { connectToDb, getDb } = require('./connect');
 
 // init app & middleware
 const app = express();
+const bodyParser = require('body-parser');
 const cors = require('cors');
+
+// middleware
+app.use(bodyParser.json());
 app.use(cors());
 
 // db connection
@@ -18,7 +23,7 @@ connectToDb((err) => {
   }
 })
 
-// routes
+// get portfolio full list
 app.get('/portfolio', (req, res) => {
   let records = [];
 
@@ -35,3 +40,15 @@ app.get('/portfolio', (req, res) => {
 
 })
 
+// get single portfolio item
+app.get('/portfolio/:id', (req, res) => {
+  
+  db.collection('portfolio')
+    .findOne({_id: new ObjectId(req.params.id)})
+    .then(doc => {
+      res.status(200).json(doc)
+    }) 
+    .catch(err => {
+      res.status(500).json({error: 'Could not fetch the document'})
+    })
+})
