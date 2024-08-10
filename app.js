@@ -56,6 +56,39 @@ app.get('/portfolio/:id', (req, res) => {
     })
 })
 
+// get single portfolio item for admin page
+app.get('/admin/portfolio-edit/:id', (req, res) => {
+  
+  db.collection('portfolio')
+    .findOne({_id: new ObjectId(req.params.id)})
+    .then(doc => {
+      res.status(200).json(doc)
+    }) 
+    .catch(err => {
+      res.status(500).json({error: 'Could not fetch the document'})
+    })
+})
+
+// update single portfolio item from admin page
+app.put('/admin/portfolio-edit/:id', async (req, res) => {
+  const updatedFields = req.body;
+
+  try {
+    const result = await db.collection('portfolio').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: updatedFields }
+    );
+
+    if(result.modifiedCount > 0) {
+      res.status(200).json({ message: 'Portfolio item updated successfully. '});
+    } else {
+      res.status(404).json({ message: 'Portfolio item not found or no change made. '});
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update record'})
+  }
+});
+
 // get user list
 app.get('/users', (req, res) => {
   let records = [];
