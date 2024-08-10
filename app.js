@@ -2,11 +2,14 @@ const express = require('express');
 const { ObjectId } = require('mongodb');
 const { connectToDb, getDb } = require('./connect');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+require('dotenv').config(); // load .env variables
 
 // init app & middleware
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const privateKey = process.env.SECRET_KEY;
 
 // middleware
 app.use(bodyParser.json());
@@ -38,7 +41,6 @@ app.get('/portfolio', (req, res) => {
     .catch(() => {
       res.status(500).json({error: 'Could not fetch the document'});
     })
-
 })
 
 // get single portfolio item
@@ -71,13 +73,13 @@ app.get('/users', (req, res) => {
 
 });
 
-
+// insert new user into database
 app.post('/users', async (req, res) => {
-  const { email, password, isAdmin } = req.body;
+  const { username, password, isAdmin } = req.body;
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = { email, password: hashedPassword, isAdmin };
+    const newUser = { username, password: hashedPassword, isAdmin };
     const result = await db.collection('users').insertOne(newUser);
     res.status(201).json({ message: 'User created successfully', userId: result.insertedId });
   } catch (err) {
@@ -85,3 +87,23 @@ app.post('/users', async (req, res) => {
   }
 });
 
+
+// route to handle user login
+app.post('/api/auth', async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const user = await db.collection('users').findOne({ username: username });
+
+    if (user && await bcrypt.compare(password, user.password)) {
+      const token = jwt.sign({ username: user.username }, privateKey, {expiresIn: '1h'});
+      const isAdmin = user.isAdmin;
+      const preferredName = user.preferredName;
+      res.status(200).json({ message: 'Login Successful', username, preferredName, isAdmin, token });
+    } else {
+      res.status(401).json({ message: 'Invalid username or password' });
+    }
+  } catch (err) {
+      res.status(500).json({ message: 'Interal server error'});
+  }
+});
