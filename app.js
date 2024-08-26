@@ -10,6 +10,8 @@ const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const privateKey = process.env.SECRET_KEY;
+const multer = require('multer'); // handle file upload
+const path = require('path');
 
 // middleware
 app.use(bodyParser.json());
@@ -17,6 +19,8 @@ app.use(cors());
 
 // db connection
 let db;
+
+// =============================== Client Site ===============================
 
 connectToDb((err) => {
   if (!err) {
@@ -56,6 +60,8 @@ app.get('/portfolio/:id', (req, res) => {
     })
 })
 
+// =============================== Admin ===============================
+
 // get single portfolio item for admin page
 app.get('/admin/portfolio-edit/:id', (req, res) => {
   
@@ -69,20 +75,79 @@ app.get('/admin/portfolio-edit/:id', (req, res) => {
     })
 })
 
+// =============================== Admin - Upload image ===============================
+
+//Set up storage and multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // in folder to store uploaded images from the client side
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname); // Unique file name
+  }
+});
+
+const upload = multer({ storage: storage});
+
+// Serve static files from the uploaded directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// upload.single('thumbnail')
+
 // update single portfolio item from admin page
-app.put('/admin/portfolio-edit/:id', async (req, res) => {
-  const updatedFields = req.body;
+const imagesUpdate = upload.fields([{name: 'thumbnail', maxCount: 1}, {name: 'images', maxCount: 10}]);
+
+app.put('/admin/portfolio-edit/:id', imagesUpdate, async (req, res) => {
+  const {
+    title,
+    desc_short,
+    desc_long,
+    tags,
+    slug,
+    highlight,
+    deleted
+  } = req.body;
+
+  let newData = {
+    title,
+    desc_short,
+    desc_long,
+    tags,
+    slug
+  }
+
+  newData.highlight = highlight === 'true';
+  newData.deleted = deleted === 'true';
 
   try {
+
+    const existingItem = await db.collection('portfolio').findOne({ _id: new ObjectId(req.params.id)});
+
+
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Portfolio item not found.'});
+    }
+
+    if (req.files.thumbnail) {
+      newData.thumbnail = `/uploads/${req.files.thumbnail[0].filename}`;
+    }
+    
+    if (req.files.images) {
+      // combind existing images with new added images 
+      const newImageUrls = req.files.images.map(file => `/uploads/${file.filename}`);
+      newData.images = [...existingItem.images, ...newImageUrls];
+    }
+
     const result = await db.collection('portfolio').updateOne(
       { _id: new ObjectId(req.params.id) },
-      { $set: updatedFields }
+      { $set: newData}
     );
 
     if(result.modifiedCount > 0) {
       res.status(200).json({ message: 'Portfolio item updated successfully. '});
     } else {
-      res.status(404).json({ message: 'Portfolio item not found or no change made. '});
+      res.status(404).json({ message: 'No change made.'});
     }
   } catch (err) {
     res.status(500).json({ error: 'Failed to update record'})
