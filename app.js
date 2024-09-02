@@ -37,7 +37,7 @@ app.get('/portfolio', (req, res) => {
 
   db.collection('portfolio')
     .find() // return cursor
-    .sort({ _id: 1 })
+    .sort({ _id: -1 })
     .forEach(record => records.push(record))
     .then(() => {
       res.status(200).json(records)
@@ -60,7 +60,7 @@ app.get('/portfolio/:id', (req, res) => {
     })
 })
 
-// =============================== Admin ===============================
+// =============================== Admin - get portfolio item ===============================
 
 // get single portfolio item for admin page
 app.get('/admin/portfolio-edit/:id', (req, res) => {
@@ -93,12 +93,54 @@ const upload = multer({ storage: storage});
 // Serve static files from the uploaded directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// upload.single('thumbnail')
-
 // update single portfolio item from admin page
-const imagesUpdate = upload.fields([{name: 'thumbnail', maxCount: 1}, {name: 'images', maxCount: 10}]);
+const uploadImages = upload.fields([{name: 'thumbnail', maxCount: 1}, {name: 'images', maxCount: 10}]);
 
-app.put('/admin/portfolio-edit/:id', imagesUpdate, async (req, res) => {
+
+// insert new portfolio item into database 
+app.post('/admin/portfolio', uploadImages, async (req, res) => {
+  const {
+    title,
+    desc_short,
+    desc_long,
+    tags,
+    slug,
+    highlight,
+    deleted
+  } = req.body;
+
+  let newData = {
+    title,
+    desc_short,
+    desc_long,
+    tags,
+    slug
+  }
+
+  newData.highlight = highlight === 'true';
+  newData.deleted = deleted === 'true';
+
+  try {
+
+    if (req.files.thumbnail) {
+      newData.thumbnail = `/uploads/${req.files.thumbnail[0].filename}`;
+    }
+    
+    if (req.files.images) {
+      // combind existing images with new added images 
+      newData.images = req.files.images.map(file => `/uploads/${file.filename}`);
+    }
+
+    const result = await db.collection('portfolio').insertOne(newData);
+    res.status(201).json({ message: 'Portfolio item created successfully', itemId: result.insertedId});
+
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update record'})
+  }
+})
+
+
+app.put('/admin/portfolio-edit/:id', uploadImages, async (req, res) => {
   const {
     title,
     desc_short,
