@@ -3,6 +3,7 @@ const { ObjectId } = require('mongodb');
 const { connectToDb, getDb } = require('./connect');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const verifyToken = require('./middleware/verifyToken');
 require('dotenv').config(); // load .env variables
 
 // init app & middleware
@@ -63,7 +64,7 @@ app.get('/portfolio/:id', (req, res) => {
 // =============================== Admin - get portfolio item ===============================
 
 // get single portfolio item for admin page
-app.get('/admin/portfolio-edit/:id', (req, res) => {
+app.get('/admin/portfolio-edit/:id', verifyToken, (req, res) => {
   
   db.collection('portfolio')
     .findOne({_id: new ObjectId(req.params.id)})
@@ -98,7 +99,7 @@ const uploadImages = upload.fields([{name: 'thumbnail', maxCount: 1}, {name: 'im
 
 
 // insert new portfolio item into database 
-app.post('/admin/portfolio', uploadImages, async (req, res) => {
+app.post('/admin/portfolio', uploadImages, verifyToken, async (req, res) => {
   const {
     title,
     desc_short,
@@ -140,7 +141,7 @@ app.post('/admin/portfolio', uploadImages, async (req, res) => {
 })
 
 
-app.put('/admin/portfolio-edit/:id', uploadImages, async (req, res) => {
+app.put('/admin/portfolio-edit/:id', verifyToken, uploadImages, async (req, res) => {
   const {
     title,
     desc_short,
@@ -196,8 +197,11 @@ app.put('/admin/portfolio-edit/:id', uploadImages, async (req, res) => {
   }
 });
 
+// =============================== Auth ===============================
+
 // get user list
-app.get('/users', (req, res) => {
+app.get('/users', verifyToken, (req, res) => {
+
   let records = [];
 
   db.collection('users')
@@ -205,7 +209,7 @@ app.get('/users', (req, res) => {
     .sort({ _id: 1 })
     .forEach(record => records.push(record))
     .then(() => {
-      res.status(200).json(records)
+      res.status(200).json(records);
     })
     .catch(() => {
       res.status(500).json({error: 'Could not fetch the document'});
@@ -214,7 +218,7 @@ app.get('/users', (req, res) => {
 });
 
 // insert new user into database
-app.post('/users', async (req, res) => {
+app.post('/users', verifyToken, async (req, res) => {
   const { username, password, isAdmin } = req.body;
 
   try {
@@ -236,10 +240,13 @@ app.post('/api/auth', async (req, res) => {
     const user = await db.collection('users').findOne({ username: username });
 
     if (user && await bcrypt.compare(password, user.password)) {
+
       const token = jwt.sign({ username: user.username }, privateKey, {expiresIn: '1h'});
       const isAdmin = user.isAdmin;
       const preferredName = user.preferredName;
+
       res.status(200).json({ message: 'Login Successful', username, preferredName, isAdmin, token });
+
     } else {
       res.status(401).json({ message: 'Invalid username or password' });
     }
