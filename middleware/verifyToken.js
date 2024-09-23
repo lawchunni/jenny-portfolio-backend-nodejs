@@ -1,7 +1,9 @@
-require('dotenv').config();
-const privateKey = process.env.SECRET_KEY;
-
 const jwt = require('jsonwebtoken');
+
+// load environment varible 
+require('dotenv').config();
+
+const privateKey = process.env.SECRET_KEY;
 
 // middleware to verify JWT
 const verifyToken = (req, res, next) => {

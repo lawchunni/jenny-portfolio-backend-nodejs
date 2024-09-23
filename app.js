@@ -10,9 +10,13 @@ require('dotenv').config(); // load .env variables
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const privateKey = process.env.SECRET_KEY;
 const multer = require('multer'); // handle file upload
 const path = require('path');
+
+// Auth Token 
+const privateKey = process.env.SECRET_KEY;
+const refreshKey = process.env.REFRESH_SECRET;
+let refreshTokens = [];
 
 // middleware
 app.use(bodyParser.json());
@@ -97,8 +101,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // update single portfolio item from admin page
 const uploadImages = upload.fields([{name: 'thumbnail', maxCount: 1}, {name: 'images', maxCount: 10}]);
 
-
-// insert new portfolio item into database 
+// insert a new portfolio item into database 
 app.post('/admin/portfolio', uploadImages, verifyToken, async (req, res) => {
   const {
     title,
@@ -140,7 +143,23 @@ app.post('/admin/portfolio', uploadImages, verifyToken, async (req, res) => {
   }
 })
 
+// get portfolio full list in admin 
+app.get('/admin/portfolio', verifyToken, (req, res) => {
+  let records = [];
 
+  db.collection('portfolio')
+    .find() // return cursor
+    .sort({ _id: -1 })
+    .forEach(record => records.push(record))
+    .then(() => {
+      res.status(200).json(records)
+    })
+    .catch(() => {
+      res.status(500).json({error: 'Could not fetch the document'});
+    })
+});
+
+// edit single portfolio item 
 app.put('/admin/portfolio-edit/:id', verifyToken, uploadImages, async (req, res) => {
   const {
     title,
@@ -201,8 +220,11 @@ app.put('/admin/portfolio-edit/:id', verifyToken, uploadImages, async (req, res)
 
 // get user list
 app.get('/users', verifyToken, (req, res) => {
+  // res.set('Access-Control-Allow-Origin', 'localhost:3000');
 
   let records = [];
+
+  console.log('admin users refresh token1: ',refreshTokens);
 
   db.collection('users')
     .find() // return cursor
@@ -218,7 +240,8 @@ app.get('/users', verifyToken, (req, res) => {
 });
 
 // insert new user into database
-app.post('/users', verifyToken, async (req, res) => {
+app.post('/users', verifyToken, upload.none(), async (req, res) => {
+
   const { username, password, isAdmin } = req.body;
 
   try {
@@ -232,8 +255,20 @@ app.post('/users', verifyToken, async (req, res) => {
 });
 
 
+// =============================== Login ===============================
+
+const generateAccessToken = (user) => {
+  return jwt.sign({ username: user.username }, privateKey, { expiresIn: '1h' });
+}
+
+const generateRefreshToken = (user) => {
+  const refreshToken = jwt.sign({ username: user.username }, refreshKey, { expiresIn: '7d' });
+  refreshTokens.push(refreshToken);
+  return refreshToken;
+}
+
 // route to handle user login
-app.post('/api/auth', async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
@@ -241,11 +276,22 @@ app.post('/api/auth', async (req, res) => {
 
     if (user && await bcrypt.compare(password, user.password)) {
 
-      const token = jwt.sign({ username: user.username }, privateKey, {expiresIn: '1h'});
+      // generate tokens
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      console.log('login refresh token: ',refreshTokens);
+
       const isAdmin = user.isAdmin;
       const preferredName = user.preferredName;
 
-      res.status(200).json({ message: 'Login Successful', username, preferredName, isAdmin, token });
+      res.status(200).json({ 
+        message: 'Login Successful', 
+        username, 
+        preferredName, 
+        isAdmin, 
+        accessToken: accessToken, 
+        refreshToken: refreshToken });
 
     } else {
       res.status(401).json({ message: 'Invalid username or password' });
@@ -253,4 +299,44 @@ app.post('/api/auth', async (req, res) => {
   } catch (err) {
       res.status(500).json({ message: 'Interal server error'});
   }
+});
+
+// route to handle user login
+app.post('/api/logout', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  console.log('logout refresh token: ',refreshTokens);
+
+  // remove the refreshToken from the list
+  refreshTokens = refreshTokens.filter(token => token !== refreshToken);
+
+  res.json({message: 'User logout successfully'});
+});
+
+// Route to refresh access token
+app.post('/api/refresh-token', (req, res) => {
+
+  // res.set('Access-Control-Allow-Origin', 'localhost:3000');
+
+  const { refreshToken } = req.body;
+
+  console.log('token refresh token: ',refreshTokens);
+
+  if (!refreshToken) {
+    return res.status(403).json({ message: 'Refresh token required' });
+  }
+
+  if (!refreshTokens.includes(refreshToken)) {
+    return res.status(403).json({ message: 'Invalid refresh token, no token record' });
+  }
+
+  jwt.verify(refreshToken, refreshKey, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid refresh token' });
+    }
+
+    // Generate a new access token
+    const newAccessToken = generateAccessToken({ username: user.username});
+    res.json({ accessToken: newAccessToken});
+  }) 
 });
