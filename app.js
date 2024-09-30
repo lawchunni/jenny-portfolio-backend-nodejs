@@ -37,7 +37,7 @@ connectToDb((err) => {
 })
 
 // get portfolio full list
-app.get('/portfolio', (req, res) => {
+app.get('/api/portfolio-list', (req, res) => {
   let records = [];
 
   db.collection('portfolio')
@@ -53,7 +53,7 @@ app.get('/portfolio', (req, res) => {
 })
 
 // get single portfolio item
-app.get('/portfolio/:id', (req, res) => {
+app.get('/api/portfolio/:id', (req, res) => {
   
   db.collection('portfolio')
     .findOne({_id: new ObjectId(req.params.id)})
@@ -68,7 +68,7 @@ app.get('/portfolio/:id', (req, res) => {
 // =============================== Admin - get portfolio item ===============================
 
 // get single portfolio item for admin page
-app.get('/admin/portfolio-edit/:id', verifyToken, (req, res) => {
+app.get('/api/admin/portfolio-edit/:id', verifyToken, (req, res) => {
   
   db.collection('portfolio')
     .findOne({_id: new ObjectId(req.params.id)})
@@ -102,7 +102,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const uploadImages = upload.fields([{name: 'thumbnail', maxCount: 1}, {name: 'images', maxCount: 10}]);
 
 // insert a new portfolio item into database 
-app.post('/admin/portfolio', uploadImages, verifyToken, async (req, res) => {
+app.post('/api/admin/portfolio', uploadImages, verifyToken, async (req, res) => {
   const {
     title,
     desc_short,
@@ -144,7 +144,7 @@ app.post('/admin/portfolio', uploadImages, verifyToken, async (req, res) => {
 })
 
 // get portfolio full list in admin 
-app.get('/admin/portfolio', verifyToken, (req, res) => {
+app.get('/api/admin/portfolio', verifyToken, (req, res) => {
   let records = [];
 
   db.collection('portfolio')
@@ -160,7 +160,7 @@ app.get('/admin/portfolio', verifyToken, (req, res) => {
 });
 
 // edit single portfolio item 
-app.put('/admin/portfolio-edit/:id', verifyToken, uploadImages, async (req, res) => {
+app.put('/api/admin/portfolio-edit/:id', verifyToken, uploadImages, async (req, res) => {
   const {
     title,
     desc_short,
@@ -219,7 +219,7 @@ app.put('/admin/portfolio-edit/:id', verifyToken, uploadImages, async (req, res)
 // =============================== Auth ===============================
 
 // get user list
-app.get('/users', verifyToken, (req, res) => {
+app.get('/api/admin/users', verifyToken, (req, res) => {
   // res.set('Access-Control-Allow-Origin', 'localhost:3000');
 
   let records = [];
@@ -240,7 +240,7 @@ app.get('/users', verifyToken, (req, res) => {
 });
 
 // insert new user into database
-app.post('/users', verifyToken, upload.none(), async (req, res) => {
+app.post('/api/admin/users', verifyToken, upload.none(), async (req, res) => {
 
   const { username, password, isAdmin } = req.body;
 
