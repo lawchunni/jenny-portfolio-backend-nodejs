@@ -11,8 +11,8 @@ const getPortfolioList = async (req, res, db) => {
     .then(() => {
       res.status(200).json(records)
     })
-    .catch(() => {
-      res.status(500).json({error: 'Could not fetch the document'});
+    .catch((err) => {
+      res.status(500).json({error: `Could not fetch the document: ${err}`});
     })
 }
 
@@ -67,7 +67,7 @@ const createPortfolioSingle = async (req, res, db) => {
     res.status(201).json({ message: 'Portfolio item created successfully', itemId: result.insertedId});
 
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update record'})
+    res.status(500).json({ error: `Failed to update record: ${err}`})
   }
 }
 
@@ -121,10 +121,10 @@ const updatePortfolioSingle = async (req, res, db) => {
     if(result.modifiedCount > 0) {
       res.status(200).json({ message: 'Portfolio item updated successfully. '});
     } else {
-      res.status(404).json({ message: 'No change made.'});
+      res.status(404).json({ message: 'Can not find the portfolio item'});
     }
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update record'})
+    res.status(500).json({ error: `Failed to update record: ${err}`})
   }
 }
 

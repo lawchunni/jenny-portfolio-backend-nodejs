@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const { ObjectId } = require('mongodb');
 
 // get user list logic
 const getUserList = async (req, res, db) => {
@@ -32,4 +33,22 @@ const createUser = async (req, res, db) => {
   }
 };
 
-module.exports = { getUserList, createUser };
+// delete user logic
+const deleteUserSingle = async (req, res, db) => {
+
+  try {
+    const result = await db.collection('users').deleteOne({ _id: new ObjectId(req.params.id)});
+
+    if (result.deletedCount === 1) {
+      res.status(200).json({ message: 'User deleted successfully.'});
+    } else {
+      res.status(404).json({ message: 'Can not find the portfolio item'});
+    }
+
+  } catch (err) {
+    res.status(500).json({ error: `Failed to delete record: ${err.message}`})
+  }
+}
+
+
+module.exports = { getUserList, createUser, deleteUserSingle };
