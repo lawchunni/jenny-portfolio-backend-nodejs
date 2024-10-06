@@ -46,11 +46,12 @@ const createPortfolioSingle = async (req, res, db) => {
     desc_short,
     desc_long,
     tags,
-    slug
+    slug,
+    highlight: highlight === 'true',
+    deleted: deleted === 'true',
+    create_date: new Date(),
+    update_date: new Date(),
   }
-
-  newData.highlight = highlight === 'true';
-  newData.deleted = deleted === 'true';
 
   try {
 
@@ -88,11 +89,11 @@ const updatePortfolioSingle = async (req, res, db) => {
     desc_short,
     desc_long,
     tags,
-    slug
+    slug,
+    highlight: highlight === 'true',
+    deleted: deleted === 'true',
+    update_date: new Date(),
   }
-
-  newData.highlight = highlight === 'true';
-  newData.deleted = deleted === 'true';
 
   try {
 

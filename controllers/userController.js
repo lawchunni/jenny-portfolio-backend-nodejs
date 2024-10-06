@@ -25,7 +25,13 @@ const createUser = async (req, res, db) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = { username, password: hashedPassword, isAdmin };
+    const newUser = { 
+      username, 
+      password: hashedPassword, 
+      isAdmin,
+      create_date: new Date(),
+      update_date: new Date(),
+    };
     const result = await db.collection('users').insertOne(newUser);
     res.status(201).json({ message: 'User created successfully', userId: result.insertedId });
   } catch (err) {
