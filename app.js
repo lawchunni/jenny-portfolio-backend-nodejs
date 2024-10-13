@@ -11,7 +11,7 @@ const cors = require('cors');
 // const multer = require('multer'); // handle file upload
 const path = require('path');
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 4000;
 
 // middleware
 app.use(bodyParser.json());
@@ -28,6 +28,10 @@ let db;
 connectToMongoDB().then((database) => {
 
   db = database;
+
+  app.get('/', (req, res) => {
+    res.send('Database connection built up successfully!');
+  })
 
   // Routes logic
   app.use('/api/users', userRoutes(db));  
