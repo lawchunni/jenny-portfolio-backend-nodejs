@@ -1,5 +1,5 @@
 const express = require('express');
-const { connectToDb, getDb } = require('./connect');
+const connectToMongoDB = require('./connect');
 
 // load .env variables
 require('dotenv').config(); 
@@ -10,6 +10,8 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 // const multer = require('multer'); // handle file upload
 const path = require('path');
+
+const port = process.env.PORT || 5000;
 
 // middleware
 app.use(bodyParser.json());
@@ -23,21 +25,20 @@ const authRoutes = require('./routes/authRoutes');
 // db connection
 let db;
 
-connectToDb((err) => {
-  if (!err) {
+connectToMongoDB().then((database) => {
 
-    db = getDb();
+  db = database;
 
-    // Start the server
-    app.listen(4000, () => {
-      console.log('app listening on port 4000');
-    })
+  // Routes logic
+  app.use('/api/users', userRoutes(db));  
+  app.use('/api/portfolio', portfolioRoutes(db));
+  app.use('/api/auth', authRoutes(db));  
 
-    // Routes logic
-    app.use('/api/users', userRoutes(db));  
-    app.use('/api/portfolio', portfolioRoutes(db));
-    app.use('/api/auth', authRoutes(db));  
-  }
+  // Start the server after connection
+  app.listen(port, () => {
+    console.log(`app listening on port ${port}`);
+  });
+
 });
 
 // Serve static files from the uploaded directory

@@ -1,18 +1,28 @@
-const { MongoClient } = require('mongodb');
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
-let dbConnection;
+// load .env variables
+require('dotenv').config(); 
 
-module.exports = {
-  connectToDb: (cb) => {
-    MongoClient.connect('mongodb://127.0.0.1:27017/portfolio') // async method return promise
-      .then((client) => {
-        dbConnection = client.db();
-        return cb();
-      })
-      .catch(err => {
-        console.log(err);
-        return cb(err);
-      })
-  }, 
-  getDb: () => dbConnection
+const env = process.env.NODE_ENV;
+const uri = env === 'production' ? process.env.MONGO_PROD_URI : process.env.MONGO_DEV_URI;
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+});
+
+async function connectToMongoDB() {
+  try {
+    await client.connect();
+    console.log('Connected to MongoDB Atlas');
+    return client.db(); // return the database object
+  } catch (error) {
+    console.error('Failed to connect to MongoDB Altas', error);
+    process.exist(1); // exist process with failure
+  }
 }
+
+module.exports = connectToMongoDB;
